@@ -69,9 +69,9 @@ I follow a step-by-step approach:
 
 **3. What are fact tables and dimension tables? Provide examples.**
 
-Answer:
+*Answer:*
 
-Fact Table
+*Fact Table*
 
 Stores measurable events (transactions, metrics).
 
@@ -81,7 +81,7 @@ Usually very large (millions of rows).
 
 Linked to dimensions using foreign keys.
 
-Dimension Table
+*Dimension Table*
 
 Stores descriptive attributes that give context to facts.
 
@@ -89,7 +89,7 @@ Contains textual info (names, categories, regions, dates).
 
 Typically smaller in size, but provides filtering and grouping power.
 
-✅ Example from your projects:
+**✅ Example from your projects:**
 
 In your Google client ticketing dashboards (Process Mining POC):
 
@@ -112,7 +112,7 @@ Columns: Region_ID, Country, City.
 So when a manager asks: “What’s the average resolution time for tickets in APAC handled by Team X last quarter?”
 👉 The query joins Fact_Tickets with Dim_Region, Dim_User, and Dim_Time.
 
-👉 In short:
+*👉 In short:*
 
 Facts = numbers (what happened).
 
@@ -121,13 +121,13 @@ Dimensions = context (who, where, when, what).
 
 **4. What is data normalization vs denormalization?**
 
-Short answer:
+*Short answer:*
 
 Normalization = split data into related tables to reduce duplication and enforce consistency (best for OLTP).
 
 Denormalization = combine data to reduce joins and speed up reads (best for OLAP/reporting).
 
-Normalization (OLTP-focused)
+*Normalization (OLTP-focused)*
 
 Goal: avoid duplicates, maintain integrity.
 
@@ -137,10 +137,10 @@ Pros: fewer anomalies, cheaper updates, consistent master data.
 
 Cons: more joins → slower analytics.
 
-Your example:
+*Your example:*
 At Blubirch, you kept Customers and Orders separate. Only customer_id is stored in orders; customer attributes live in customers. This made updates (e.g., phone change) consistent everywhere.
 
-Denormalization (OLAP-focused)
+*Denormalization (OLAP-focused)*
 
 Goal: faster reads/aggregations for analytics.
 
@@ -150,19 +150,19 @@ Pros: fewer joins, faster dashboards and aggregates.
 
 Cons: duplicate data, heavier updates, risk of drift without governance.
 
-Your example:
+*Your example:*
 For Google client dashboards in BigQuery + Power BI/Looker, you kept a wide fact_tickets with user/region/time keys and sometimes carried descriptive fields (e.g., region_name) to speed up common queries and reduce joins—cutting costs ~30% with partitioning + clustering.
 
 Tiny table sketch
 
-Normalized (OLTP):
+*Normalized (OLTP):*
 
 customers(customer_id PK, name, email, region_id FK)
 regions(region_id PK, region_name)
 orders(order_id PK, customer_id FK, order_dt, amount)
 
 
-Denormalized (OLAP):
+*Denormalized (OLAP):*
 
 fact_orders(order_id, order_dt, amount, customer_id, customer_name, region_id, region_name)
 
@@ -172,16 +172,16 @@ Use normalization for systems that are updated constantly (ticketing, orders, us
 
 Use denormalization for analytics warehouses/lakes where read speed matters (dashboards, ad-hoc SQL, ML features).
 
-One-liner:
+*One-liner:*
 
 Normalize to write fast & stay consistent; denormalize to read fast & analyze.
 
 **5. How do you handle schema changes in a live warehouse?**
 
-Short answer:
+*Short answer:*
 Use controlled, backward-compatible, versioned changes with staging/testing before pushing into production.
 
-Common Types of Schema Changes
+*Common Types of Schema Changes*
 
 Add a column → safest, usually backward compatible.
 
@@ -191,21 +191,21 @@ Change data type → must be handled with care (migrate data gradually).
 
 Partition/cluster changes → usually require creating a new table and migrating.
 
-Approach (Step-by-Step)
+*Approach (Step-by-Step)*
 
-Version control your schema
+*Version control your schema*
 
 Use dbt, Liquibase, or SQL migration scripts in Git.
 
 Example: In your Agivant/Google project, you kept ETL SQL scripts in Git and peer-reviewed schema updates.
 
-Test in staging first
+*Test in staging first*
 
 Apply changes on a staging dataset and validate against existing queries/dashboards.
 
 Example: You tested adding an sla_breach_flag column in staging before BigQuery prod.
 
-Backward-compatible rollout
+*Backward-compatible rollout*
 
 Add new columns as nullable/defaults first.
 
@@ -219,7 +219,7 @@ Sync Power BI/Looker dashboards so measures don’t break.
 
 Communicate with stakeholders
 
-Notify analysts/teams about schema changes.
+*Notify analysts/teams about schema changes.*
 
 Example: When you added Resolution_Duration field, you shared a data dictionary update with CXO dashboard users.
 
@@ -241,16 +241,313 @@ Modified Power BI dashboards to use it (while old queries still worked).
 
 Only after validation, you enforced NOT NULL in production.
 
-One-liner takeaway
+*One-liner takeaway*
 
 “Add safe changes incrementally, test in staging, keep backward compatibility, and communicate with downstream users.”
 
 ## ETL / ELT & Cloud Platforms
-6.	1. What’s the difference between ETL and ELT? Which do you prefer?
-7.	2. How do you ensure data quality in pipelines?
-8.	3. What are partitioning and clustering in BigQuery?
-9.	4. Explain how you’d migrate from on-prem SQL Server to BigQuery.
-10.	5. How do you manage incremental vs full data loads?
+**1. What’s the difference between ETL and ELT? Which do you prefer?**
+
+*Short answer:*
+
+ETL (Extract → Transform → Load): transform before loading.
+
+ELT (Extract → Load → Transform): load raw first, then transform inside the warehouse.
+
+ETL (Traditional Approach)
+
+Process:
+
+Extract data from sources.
+
+Transform in an external ETL tool/server.
+
+Load into warehouse.
+
+Best for: legacy warehouses with limited compute (SQL Server, Oracle).
+
+Pros: keeps warehouse clean; only transformed data enters.
+
+Cons: slow, complex pipelines; external compute bottleneck.
+
+Example from your work:
+At MotifWorks Tech, ETL was used for QA/analytics systems. Transformations (joins, cleaning, formatting) happened before loading into SQL Server. This helped maintain clean transactional stores but was less scalable.
+
+ELT (Modern Approach)
+
+Process:
+
+Extract data from sources.
+
+Load raw data directly into warehouse (BigQuery, Snowflake, Redshift).
+
+Transform inside the warehouse using SQL/dbt.
+
+Best for: modern cloud warehouses with massive scale.
+
+Pros: scalable, flexible, can re-run transformations on demand; raw data preserved.
+
+Cons: requires governance to avoid a messy “data swamp.”
+
+Example from your work:
+At Agivant (Google project), you optimized BigQuery pipelines to load raw ticket logs first (10M+ rows daily), then applied transformations (partitioning, clustering, SLA calculations) inside BigQuery. This reduced pipeline complexity and enabled analysts to rerun queries on raw data without waiting for ETL jobs.
+
+Preference
+
+👉 You prefer ELT because:
+
+Cloud warehouses (BigQuery, Snowflake, Redshift) are built for it.
+
+Keeps raw + transformed data → flexibility.
+
+Faster iteration for analytics and ML pipelines.
+
+One-liner takeaway
+
+ETL = old-school (transform outside, load clean), ELT = modern (load raw, transform inside). For cloud-scale projects like yours → ELT wins.
+
+**2. How do you ensure data quality in pipelines?**
+
+Short answer:
+By embedding validation checks, monitoring, and governance into every stage of the pipeline — from ingestion to reporting.
+
+Key Practices
+
+Validation at Ingestion
+
+Schema checks (column types, nullability).
+
+Reject/flag invalid rows early.
+
+Example: In Blubirch pipelines, you ensured that all sales amounts were non-negative before loading to BigQuery.
+
+Automated Data Quality Frameworks
+
+Use tools like Great Expectations or dbt tests.
+
+Define rules: ranges, uniqueness, referential integrity.
+
+Example: In your AI/ML Data Quality Solution POC, you built batch-wise checks with Great Expectations and displayed results in a Streamlit dashboard.
+
+Quarantine & Alerts
+
+Move failed records to a quarantine bucket for review.
+
+Trigger Slack/Email alerts if thresholds break.
+
+Example: In your POC, when >2% rows failed, pipeline raised alerts and stored failures separately.
+
+Incremental Testing
+
+Run validation on incremental loads, not just full reloads.
+
+Example: In Google client ticket data, daily incremental loads were tested for duplicate Ticket_IDs and SLA outliers.
+
+Data Governance & Documentation
+
+Maintain data dictionary, ownership, and lineage.
+
+Example: You updated data dictionaries when new columns like sla_breach_flag were added, so analysts had clear definitions.
+
+Monitoring & SLA Tracking
+
+Monitor freshness (how recent data is).
+
+Monitor completeness (expected row counts).
+
+Example: In Power BI dashboards, you added metadata KPIs (last refresh timestamp, load status) for transparency.
+
+Real-world Example (from your profile)
+
+In your Streamlit + Great Expectations pipeline, you:
+
+Generated 10K rows per batch.
+
+Ran checks (null %, min/max ranges, duplicates).
+
+Quarantined failed rows.
+
+Displayed batch quality scores (freshness, completeness) in a live dashboard for business users.
+
+One-liner takeaway
+
+“I embed automated checks, quarantine bad data, and surface quality metrics through dashboards — so business leaders trust the data before making decisions.”
+
+
+**3. What are partitioning and clustering in BigQuery?**
+
+Short answer:
+Both are optimization techniques in BigQuery that reduce cost and improve query performance by scanning less data.
+
+Partitioning
+
+Definition: Splitting a large table into smaller chunks based on a column (commonly DATE, TIMESTAMP, or INTEGER RANGE).
+
+Benefit: Queries only scan the partitions they need → lower cost + faster.
+
+Example (your work): In your Google project, you partitioned fact_tickets by Open_Date. A query for “last 7 days” scanned only 7 partitions instead of the entire 10M+ row table, saving ~30% cost.
+
+Clustering
+
+Definition: Organizing data within a partition based on the values of one or more columns.
+
+Benefit: Improves filter + aggregation performance (especially on high-cardinality columns).
+
+Example (your work): You clustered fact_tickets by Region and Priority. So when CXOs filtered dashboards by APAC or Priority=High, BigQuery skipped irrelevant blocks, making queries much faster.
+
+Combined Use
+
+Partition by date/time (most common query filter).
+
+Cluster by high-cardinality columns (like user_id, region, product).
+
+Example from your project:
+
+Partitioned by Open_Date.
+
+Clustered by Region + Priority.
+
+Result: SLA monitoring dashboards in Power BI refreshed in seconds instead of minutes.
+
+One-liner takeaway
+
+Partitioning reduces data scanned by time, clustering speeds up queries by sorting data within partitions.
+
+**4. Explain how you’d migrate from on-prem SQL Server to BigQuery.**
+
+Short answer:
+Migration = Assess → Extract → Load → Transform → Validate → Optimize.
+
+Step-by-Step Approach
+
+Assessment & Planning
+
+Analyze source schema (tables, indexes, stored procedures).
+
+Map SQL Server datatypes → BigQuery equivalents.
+
+Identify partitioning & clustering strategy.
+
+Example: At Blubirch, you mapped money/decimal fields in SQL Server to NUMERIC in BigQuery to avoid precision loss.
+
+Extract & Transfer
+
+Use tools:
+
+Dataflow / Datastream (GCP-native).
+
+SQL Server Integration Services (SSIS).
+
+Third-party tools (Informatica, Talend).
+
+Transfer bulk data to Cloud Storage first.
+
+Load into BigQuery
+
+Use bq load or GCP Transfer Service to load from Cloud Storage.
+
+For incremental sync: use change data capture (CDC) on SQL Server and stream updates.
+
+Example: Daily incremental job in your Google project loaded ticket updates, while master reference tables (users, regions) were reloaded fully.
+
+Transform in BigQuery (ELT)
+
+Rewrite stored procedures into BigQuery SQL / dbt models.
+
+Apply partitioning (by date) + clustering (by region or product).
+
+Example: You transformed Fact_Orders into Fact_Tickets with calculated SLA fields directly inside BigQuery for CXO dashboards.
+
+Validation
+
+Compare record counts, sums, and aggregates between SQL Server & BigQuery.
+
+Automate validation queries.
+
+Example: In Blubirch migration, you validated SUM(sales_amount) and row counts for each day to ensure 99%+ accuracy.
+
+Optimization
+
+Create materialized views for heavy queries.
+
+Set table expiration for staging data.
+
+Monitor query cost & adjust partitioning strategy.
+
+Example: After migration, you reduced costs by 30% by clustering BigQuery tables on Region.
+
+Real-World Example (from your profile)
+
+At Blubirch, when moving from PostgreSQL/SQL Server to BigQuery, you:
+
+Loaded raw order/returns data into Cloud Storage.
+
+Used BigQuery ELT for transformations.
+
+Built dashboards in Power BI / Google Data Studio.
+
+Optimized performance with partitioning by date + clustering by region.
+
+One-liner takeaway
+
+Migrate in phases: assess, load raw to BigQuery, transform with ELT, validate with aggregates, and optimize with partitioning/clustering.
+
+**5. How do you manage incremental vs full data loads?**
+
+Short answer:
+
+Full load = reload everything.
+
+Incremental load = load only new or changed data.
+The choice depends on table size, update frequency, and business requirements.
+
+Full Load
+
+Definition: Truncate and reload the entire dataset.
+
+Best for: small tables, reference/master data.
+
+Pros: simple, no risk of missing updates.
+
+Cons: heavy on large tables (slow + costly).
+
+Example (your work):
+In the Google project, you did a full reload of Dim_Region and Dim_User daily since they were small (few hundred rows).
+
+Incremental Load
+
+Definition: Only new or updated rows are processed.
+
+Methods:
+
+Timestamps (e.g., last_updated > yesterday).
+
+Change Data Capture (CDC) from source DB logs.
+
+Primary key comparison.
+
+Best for: large fact tables.
+
+Pros: efficient, faster, cheaper.
+
+Cons: requires reliable tracking mechanism.
+
+Example (your work):
+For Fact_Tickets (~10M+ rows daily), you used incremental loads with Open_Date and Last_Updated_Timestamp. Only changed tickets were appended/updated in BigQuery.
+
+Hybrid Approach
+
+Use incremental loads for transactional/fact tables.
+
+Use full loads for small reference/dimension tables.
+
+One-liner takeaway
+
+Incremental loads = efficient for large tables; full loads = safe for small or static reference tables. In practice, I use both depending on table size & update frequency.
+
+👉 Do you want me to also give a sample SQL snippet for incremental load (using last_updated timestamp) so you can quote it in interviews?
+
+
 ## BI & Dashboards
 11.	1. What KPIs would you track in an executive BI dashboard?
 12.	2. How do you handle dashboard performance issues (slow refresh)?
